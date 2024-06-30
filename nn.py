@@ -2,6 +2,11 @@ from engine import Atom
 import random
 
 
+def mse_loss(targets: list[Atom], predictions: list[Atom]):
+	loss = sum([(yout - ygt) ** 2 for ygt, yout in zip(targets, predictions)])
+	return loss
+
+
 class Mod:
 	def zero_grad(self):
 		for p in self.parameters():
@@ -12,14 +17,19 @@ class Mod:
 
 
 class Neuron(Mod):
-	def __init__(self, nin):
+	'''
+	A neuron is a function that takes in a list of atoms and returns a single atom.
+
+	nin (int): number of inputs
+	'''
+	def __init__(self, nin: int):
 		self.weights = [Atom(random.uniform(-1, 1)) for _ in range(nin)]
 		self.bias = Atom(random.uniform(-1, 1))
 
-	def __call__(self, x):
+	def __call__(self, x: list[Atom]):
 		# weights * x + bias
 		act = sum(wi * xi for wi, xi in zip(self.weights, x)) + self.bias
-		return act.tanh()
+		return act.relu()
 
 	def parameters(self):
 		return self.weights + [self.bias]
@@ -27,13 +37,15 @@ class Neuron(Mod):
 
 class Layer(Mod):
 	'''
-	Just a list of neurons
+	A layer is a list of neurons.
+
+	nin (int): number of inputs
+	n_out (int): number of outputs
 	'''
+	def __init__(self, nin: int, n_out: int):
+		self.neurons = [Neuron(nin) for _ in range(n_out)]
 
-	def __init__(self, nin, nout):
-		self.neurons = [Neuron(nin) for _ in range(nout)]
-
-	def __call__(self, x):
+	def __call__(self, x: list[Atom]):
 		results = [n(x) for n in self.neurons]
 		return results[0] if len(results) == 1 else results
 
@@ -49,11 +61,17 @@ class Layer(Mod):
 
 
 class MLP(Mod):
-	def __init__(self, nin, nouts):
+	'''
+	A multilayer perceptron is a list of layers.
+
+	nin (int): number of inputs
+	nouts (list[int]): number of outputs in each layer
+	'''
+	def __init__(self, nin: int, nouts: list[int]):
 		sizes = [nin] + nouts
 		self.layers = [Layer(sizes[i], sizes[i + 1]) for i in range(len(nouts))]
 
-	def __call__(self, x):
+	def __call__(self, x: list[Atom]):
 		for layer in self.layers:
 			x = layer(x)
 		return x
